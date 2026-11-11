@@ -1,1 +1,1 @@
-window.TMR_CONFIG = { SUPABASE_URL: "https://aiyxejngctdobncbvyhr.supabase.co", SUPABASE_KEY: "sb_publishable_bM9lBtONOVTdoIgUvoLTFw_z_F3_dQS" };
+window.TMR_CONFIG = { SUPABASE_URL: "https://aiyxejngctdobncbvyhr.supabase.co", SUPABASE_KEY: "sb_publishable_bM9lBtONOVTdoIgUvoLTFw_z_F3_dQS", VAPID_PUBLIC: "BOXVIOawig5na4axHx4KEzGh0_kdTjtkUEjukRgwJ84WrQVHA17YwPbR48RFQUWW2HzGdQLKSSD8e_GRG7JZuOk" };
