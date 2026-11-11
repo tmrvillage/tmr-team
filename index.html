@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TMR Team</title>
+<meta name="description" content="App interna TMR Village: avvisi, turni, permessi e chat dei reparti">
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="TMR Team">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: barra nera in alto, una colonna di lavoro (max 760px), barra di navigazione fissa in basso come un'app. */
+:root{
+  --bg:#f2f2f3; --surface:#ffffff; --surface-2:#e8e8ea; --line:#d6d6da;
+  --fg:#141416; --muted:#5d5d66; --bar:#111111; --bar-fg:#ffffff;
+  --red:#d0101b; --red-fg:#ffffff; --red-soft:#fde3e4;
+  --ok:#1b7a43; --ok-soft:#dcf1e4; --warn:#985800; --warn-soft:#fbedd2;
+  --d-hospitality:#a8326b; --d-negozio:#0d7a6f; --d-magazzino:#8a5a00; --d-amministrazione:#4b4fb8; --d-online:#1f66a8; --d-tutti:#3d3d46;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:10px; --nav-h:62px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0d0d0f; --surface:#18181b; --surface-2:#232328; --line:#33333a;
+  --fg:#ececef; --muted:#a0a0aa; --bar:#000000; --bar-fg:#ffffff;
+  --red:#ff3b45; --red-fg:#ffffff; --red-soft:#3a1416;
+  --ok:#6fd09c; --ok-soft:#14301f; --warn:#f0b955; --warn-soft:#352810;
+  --d-hospitality:#f08cba; --d-negozio:#5fd1c4; --d-magazzino:#e3b45a; --d-amministrazione:#a3a6ff; --d-online:#7db8ee; --d-tutti:#b5b5c0;
+  color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--body);-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+h1,h2,h3{font-family:var(--display);letter-spacing:.01em;margin:0;text-wrap:balance}
+h2{font-size:24px;text-transform:uppercase}
+p{margin:0}
+.muted{color:var(--muted)} .small{font-size:13px}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+
+/* barra in alto */
+.topbar{position:sticky;top:0;z-index:20;background:var(--bar);color:var(--bar-fg);padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:baseline;gap:6px;font-family:var(--display);font-weight:700;font-size:24px;letter-spacing:.02em;line-height:1}
+.brand b{color:var(--red);font-weight:700}
+.brand span{font-size:15px;letter-spacing:.18em;opacity:.85}
+.topbar .spacer{flex:1}
+.me{display:flex;flex-direction:column;align-items:flex-end;line-height:1.2;min-width:0}
+.me strong{font-size:14px;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.me small{font-size:12px;opacity:.75}
+.icon-btn{background:transparent;border:1px solid #ffffff40;color:var(--bar-fg);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:600;cursor:pointer}
+
+main{max-width:760px;margin:0 auto;padding:18px 16px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+
+/* navigazione in basso */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--bar);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav-in{display:flex;width:100%;max-width:760px}
+.nav button{flex:1;background:none;border:0;color:#ffffffb0;height:var(--nav-h);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;font-weight:600;cursor:pointer;position:relative;border-top:3px solid transparent}
+.nav button svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav button[aria-current="page"]{color:#fff;border-top-color:var(--red)}
+.nav .dot{position:absolute;top:8px;left:calc(50% + 8px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;line-height:18px;text-align:center}
+
+/* elementi comuni */
+.head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;flex-wrap:wrap;gap:12px}
+.row>*{flex:1 1 140px;min-width:0}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+label.check{flex-direction:row;align-items:center;gap:8px;color:var(--fg);font-size:14px;font-weight:500}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;width:100%;min-width:0;font-size:16px}
+input[type=checkbox]{width:20px;height:20px;padding:0;flex:none;accent-color:var(--red)}
+textarea{resize:vertical;min-height:70px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer;font-size:15px}
+.btn.red{background:var(--red);border-color:var(--red);color:var(--red-fg)}
+.btn.dark{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.btn.small{padding:6px 11px;font-size:13px}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted);padding:6px 8px;font-size:13px}
+.btn.ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.btn.no{background:var(--red-soft);border-color:var(--red);color:var(--red)}
+.btn:disabled{opacity:.55;cursor:default}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.item.urgente{border-color:var(--red);box-shadow:inset 4px 0 0 var(--red)}
+.item h3{font-family:var(--body);font-size:17px;font-weight:700;overflow-wrap:anywhere}
+.item p{white-space:pre-wrap;overflow-wrap:anywhere}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13px;color:var(--muted)}
+.meta .grow{flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.pill.dot::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.rep-hospitality{color:var(--d-hospitality)} .rep-negozio{color:var(--d-negozio)} .rep-magazzino{color:var(--d-magazzino)}
+.rep-amministrazione{color:var(--d-amministrazione)} .rep-online{color:var(--d-online)} .rep-tutti{color:var(--d-tutti)}
+.st-attesa{color:var(--warn);background:var(--warn-soft)} .st-approvato{color:var(--ok);background:var(--ok-soft)} .st-rifiutato{color:var(--red);background:var(--red-soft)}
+.tag-red{color:var(--red);background:var(--red-soft)}
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:22px 16px;text-align:center;color:var(--muted)}
+
+/* turni */
+.week{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.day{display:flex;gap:12px;padding:10px 14px;border-top:1px solid var(--line)}
+.day:first-child{border-top:0}
+.day.oggi{background:var(--red-soft)}
+.day .d{flex:0 0 92px;font-weight:700}
+.day .d span{display:block;font-weight:500;font-size:13px;color:var(--muted)}
+.day .s{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
+.shift{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:4px 6px 4px 9px;font-size:13px;max-width:100%}
+.shift.mio{border-color:var(--red)}
+.shift i{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+.shift b{overflow-wrap:anywhere}
+.shift time{color:var(--muted);font-variant-numeric:tabular-nums}
+.shift button{border:0;background:none;color:var(--muted);font-size:17px;line-height:1;padding:0 4px;cursor:pointer}
+
+/* chat */
+.channels{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.channels button{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 13px;font-weight:600;font-size:14px;cursor:pointer;position:relative}
+.channels button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.channels button.nuovi::after{content:"";position:absolute;top:2px;right:2px;width:9px;height:9px;border-radius:50%;background:var(--red)}
+.msgs{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;height:calc(100dvh - 330px);min-height:240px;overflow-y:auto}
+.msg{display:flex;flex-direction:column;gap:2px;max-width:85%;align-self:flex-start;min-width:0}
+.msg.mio{align-self:flex-end;align-items:flex-end}
+.msg .b{background:var(--surface-2);border-radius:14px;padding:8px 12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.mio .b{background:var(--red);color:var(--red-fg)}
+.send{display:flex;gap:8px}
+.send input{flex:1}
+
+/* accesso */
+.auth{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(24px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px));gap:20px;background:var(--bar)}
+.auth .brand{font-size:44px;color:#fff}
+.auth .brand span{font-size:22px}
+.auth .card{width:100%;max-width:400px;background:var(--surface);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.seg{display:flex;background:var(--surface-2);border-radius:9px;padding:3px}
+.seg button{flex:1;border:0;background:none;border-radius:7px;padding:8px;font-weight:700;cursor:pointer;color:var(--muted)}
+.seg button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px #0002}
+.msgbox{border-radius:8px;padding:10px 12px;font-size:14px}
+.msgbox.err{background:var(--red-soft);color:var(--red)}
+.msgbox.info{background:var(--ok-soft);color:var(--ok)}
+.linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:14px;align-self:center}
+
+#toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:99px;font-weight:600;font-size:14px;max-width:calc(100% - 32px);z-index:50;text-align:center}
+@media (max-width:520px){.day{flex-direction:column;gap:6px}.day .d{flex:none}.day .d span{display:inline;margin-left:6px}.msg{max-width:92%}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<!-- schermata di caricamento / configurazione -->
+<div id="v-avvio" class="auth">
+  <div class="brand"><b>TMR</b><span>TEAM</span></div>
+  <p id="avvio-msg" style="color:#fff;opacity:.8;text-align:center;max-width:360px">Caricamento…</p>
+</div>
+
+<!-- accesso -->
+<div id="v-accesso" class="auth" hidden>
+  <div class="brand"><b>TMR</b><span>TEAM</span></div>
+  <div class="card">
+    <div class="seg" role="tablist">
+      <button type="button" role="tab" id="seg-entra" aria-selected="true">Accedi</button>
+      <button type="button" role="tab" id="seg-reg" aria-selected="false">Registrati</button>
+    </div>
+    <div id="auth-msg" class="msgbox" hidden></div>
+
+    <form id="f-entra" class="panel" style="border:0;padding:0">
+      <label>Email<input id="e-email" type="email" autocomplete="email" required></label>
+      <label>Password<input id="e-pass" type="password" autocomplete="current-password" required></label>
+      <button class="btn red" type="submit">Accedi</button>
+      <button class="linkbtn" type="button" id="b-dimenticata">Password dimenticata?</button>
+    </form>
+
+    <form id="f-reg" class="panel" style="border:0;padding:0" hidden>
+      <label>Nome e cognome<input id="r-nome" autocomplete="name" required maxlength="60"></label>
+      <label>Reparto<select id="r-reparto" required></select></label>
+      <label>Email<input id="r-email" type="email" autocomplete="email" required></label>
+      <label>Password (almeno 8 caratteri)<input id="r-pass" type="password" autocomplete="new-password" minlength="8" required></label>
+      <button class="btn red" type="submit">Crea account</button>
+      <p class="small muted">Dopo la registrazione un responsabile deve approvare il tuo account.</p>
+    </form>
+
+    <form id="f-reset" class="panel" style="border:0;padding:0" hidden>
+      <p>Scrivi la tua email: ti mandiamo un link per scegliere una nuova password.</p>
+      <label>Email<input id="p-email" type="email" autocomplete="email" required></label>
+      <button class="btn red" type="submit">Invia link</button>
+      <button class="linkbtn" type="button" id="b-torna">Torna all'accesso</button>
+    </form>
+
+    <form id="f-nuova" class="panel" style="border:0;padding:0" hidden>
+      <p>Scegli la tua nuova password.</p>
+      <label>Nuova password (almeno 8 caratteri)<input id="n-pass" type="password" autocomplete="new-password" minlength="8" required></label>
+      <button class="btn red" type="submit">Salva password</button>
+    </form>
+  </div>
+</div>
+
+<!-- in attesa di approvazione -->
+<div id="v-attesa" class="auth" hidden>
+  <div class="brand"><b>TMR</b><span>TEAM</span></div>
+  <div class="card">
+    <h2>Account in attesa</h2>
+    <p>Ciao <strong id="att-nome"></strong>, il tuo account è stato creato. Un responsabile deve approvarlo: appena fatto potrai entrare.</p>
+    <div class="actions"><button class="btn red" type="button" id="b-ricontrolla">Controlla di nuovo</button><button class="btn" type="button" id="b-esci2">Esci</button></div>
+  </div>
+</div>
+
+<!-- app -->
+<div id="v-app" hidden>
+  <header class="topbar">
+    <div class="brand"><b>TMR</b><span>TEAM</span></div>
+    <div class="spacer"></div>
+    <div class="me"><strong id="me-nome"></strong><small id="me-rep"></small></div>
+    <button class="icon-btn" type="button" id="b-esci">Esci</button>
+  </header>
+
+  <main>
+    <!-- AVVISI -->
+    <section id="s-avvisi" class="list">
+      <div class="head"><h2>Avvisi</h2>
+        <div class="actions"><label class="check"><input type="checkbox" id="av-miei"> Solo il mio reparto</label>
+        <button class="btn red small solo-resp" type="button" id="b-nuovo-avviso">+ Nuovo avviso</button></div></div>
+      <form class="panel" id="f-avviso" hidden>
+        <div class="row">
+          <label>Titolo<input id="av-titolo" required maxlength="120"></label>
+          <label>Per chi<select id="av-reparto"></select></label>
+        </div>
+        <label>Testo<textarea id="av-testo" required maxlength="2000"></textarea></label>
+        <div class="actions"><button class="btn red" type="submit">Pubblica</button><label class="check"><input type="checkbox" id="av-urgente"> Urgente</label><button class="btn ghost" type="button" data-chiudi="f-avviso">Annulla</button></div>
+      </form>
+      <div class="list" id="l-avvisi"></div>
+    </section>
+
+    <!-- TURNI -->
+    <section id="s-turni" class="list" hidden>
+      <div class="head"><h2 id="t-titolo">Turni</h2>
+        <div class="actions">
+          <button class="btn small" type="button" id="t-prec" aria-label="Settimana precedente">‹</button>
+          <button class="btn small" type="button" id="t-oggi">Oggi</button>
+          <button class="btn small" type="button" id="t-succ" aria-label="Settimana successiva">›</button>
+        </div></div>
+      <div class="row"><label>Mostra<select id="t-filtro"></select></label></div>
+      <div class="week" id="t-settimana"></div>
+      <button class="btn red solo-resp" type="button" id="b-nuovo-turno">+ Aggiungi turno</button>
+      <form class="panel" id="f-turno" hidden>
+        <div class="row">
+          <label>Persona<select id="tu-persona" required></select></label>
+          <label>Giorno<input id="tu-giorno" type="date" required></label>
+          <label>Dalle<input id="tu-inizio" type="time" required value="09:00"></label>
+          <label>Alle<input id="tu-fine" type="time" required value="13:00"></label>
+        </div>
+        <label class="check"><input type="checkbox" id="tu-ripeti"> Ripeti per tutta la settimana (lunedì–sabato)</label>
+        <div class="actions"><button class="btn red" type="submit">Salva turno</button><button class="btn ghost" type="button" data-chiudi="f-turno">Annulla</button></div>
+      </form>
+    </section>
+
+    <!-- PERMESSI -->
+    <section id="s-permessi" class="list" hidden>
+      <div class="head"><h2>Permessi</h2></div>
+      <form class="panel" id="f-permesso">
+        <strong>Nuova richiesta</strong>
+        <div class="row">
+          <label>Tipo<select id="pe-tipo"><option>Ferie</option><option>Permesso (ore)</option><option>Malattia</option><option>Altro</option></select></label>
+          <label>Dal<input id="pe-dal" type="date" required></label>
+          <label>Al<input id="pe-al" type="date" required></label>
+        </div>
+        <label>Nota (facoltativa)<input id="pe-nota" maxlength="300" placeholder="Es. solo il pomeriggio, dalle 14"></label>
+        <div class="actions"><button class="btn red" type="submit">Invia richiesta</button></div>
+      </form>
+      <div class="head"><h3 id="pe-titolo-lista">Le mie richieste</h3>
+        <label class="check solo-resp"><input type="checkbox" id="pe-solo-attesa"> Solo da decidere</label></div>
+      <div class="list" id="l-permessi"></div>
+    </section>
+
+    <!-- CHAT -->
+    <section id="s-chat" class="list" hidden>
+      <div class="channels" id="c-canali"></div>
+      <div class="msgs" id="c-msgs" aria-live="polite"></div>
+      <form class="send" id="f-msg">
+        <input id="c-testo" maxlength="1000" autocomplete="off" placeholder="Scrivi un messaggio" aria-label="Messaggio" enterkeyhint="send">
+        <button class="btn red" type="submit">Invia</button>
+      </form>
+    </section>
+
+    <!-- PERSONE (solo amministratore) -->
+    <section id="s-persone" class="list" hidden>
+      <div class="head"><h2>Persone</h2></div>
+      <p class="muted small">Approva chi si è registrato e decidi il ruolo. <b>Responsabile</b>: pubblica avvisi, gestisce i turni e approva i permessi. <b>Amministratore</b>: in più gestisce le persone.</p>
+      <div class="list" id="l-persone"></div>
+    </section>
+  </main>
+
+  <nav class="nav" aria-label="Sezioni"><div class="nav-in">
+    <button type="button" data-v="avvisi"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6L7 10H4z"/><path d="M16 9a4 4 0 0 1 0 6"/></svg>Avvisi<span class="dot" id="nd-avvisi" hidden></span></button>
+    <button type="button" data-v="turni"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Turni</button>
+    <button type="button" data-v="permessi"><svg viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10A.5.5 0 0 1 7 20z"/><path d="M10 13l2 2 3.5-4"/></svg>Permessi<span class="dot" id="nd-permessi" hidden></span></button>
+    <button type="button" data-v="chat"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>Chat<span class="dot" id="nd-chat" hidden></span></button>
+    <button type="button" data-v="persone" class="solo-admin"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/></svg>Persone<span class="dot" id="nd-persone" hidden></span></button>
+  </div></nav>
+</div>
+
+<div id="toast" role="status" hidden></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.87.2/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
