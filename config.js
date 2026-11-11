@@ -1,7 +1,1 @@
-// Dati di collegamento a Supabase (Project Settings -> API).
-// La chiave "publishable" / "anon" e' fatta per stare in una pagina pubblica:
-// i dati sono protetti dalle regole di accesso, non da questa chiave.
-window.TMR_CONFIG = {
-  SUPABASE_URL: "",
-  SUPABASE_KEY: ""
-};
+window.TMR_CONFIG = { SUPABASE_URL: "https://aiyxejngctdobncbvyhr.supabase.co", SUPABASE_KEY: "sb_publishable_bM9lBtONOVTdoIgUvoLTFw_z_F3_dQS" };
