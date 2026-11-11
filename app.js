@@ -256,6 +256,7 @@ function entraNellApp() {
   S.caricato = true;
   ricaricaTutto();
   attaccaTempoReale();
+  pannelloNotifiche();
 }
 
 function vai(v) {
@@ -485,6 +486,44 @@ function renderPersone() {
     ]));
   });
 }
+
+/* ---------- notifiche sul telefono ---------- */
+function b64u(s) { var p = "=".repeat((4 - s.length % 4) % 4); var b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); var a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
+function pushSupportato() { return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window; }
+function suIphone() { return /iPhone|iPad|iPod/.test(navigator.userAgent); }
+function comeApp() { return window.navigator.standalone === true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches); }
+function salvaIscrizione(sub) { var j = sub.toJSON(); return sb.from("push_iscrizioni").upsert({ endpoint: j.endpoint, persona: S.me.id, p256dh: j.keys.p256dh, auth: j.keys.auth }, { onConflict: "endpoint" }); }
+function pannelloNotifiche() {
+  var box = $("notifiche-box");
+  if (!box) { box = h("div", { id: "notifiche-box", "class": "panel" }); var sec = $("s-avvisi"); sec.insertBefore(box, sec.firstChild); }
+  box.textContent = ""; box.hidden = true;
+  var chiave = (window.TMR_CONFIG || {}).VAPID_PUBLIC;
+  if (!chiave) return;
+  if (!pushSupportato()) {
+    if (suIphone() && !comeApp()) { box.hidden = false; box.appendChild(h("p", { "class": "small", text: "Per ricevere le notifiche su iPhone: apri questa pagina con Safari, tocca Condividi e poi \"Aggiungi alla schermata Home\". Poi apri TMR Team dall'icona." })); }
+    return;
+  }
+  if (Notification.permission === "denied") { box.hidden = false; box.appendChild(h("p", { "class": "small", text: "Le notifiche sono bloccate. Per attivarle: Impostazioni del telefono → Notifiche → TMR Team." })); return; }
+  navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+    if (sub && Notification.permission === "granted") { salvaIscrizione(sub); return; }
+    box.hidden = false; box.textContent = "";
+    box.appendChild(h("div", { "class": "actions" }, [
+      h("span", { style: "flex:1;min-width:180px", text: "Ricevi sul telefono avvisi, messaggi e risposte ai permessi." }),
+      h("button", { "class": "btn red small", type: "button", text: "Attiva notifiche", on: { click: attivaNotifiche } })
+    ]));
+  }).catch(function () {});
+}
+function attivaNotifiche() {
+  var chiave = window.TMR_CONFIG.VAPID_PUBLIC;
+  Notification.requestPermission().then(function (p) {
+    if (p !== "granted") { pannelloNotifiche(); return; }
+    return navigator.serviceWorker.ready
+      .then(function (reg) { return reg.pushManager.getSubscription().then(function (s) { return s || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(chiave) }); }); })
+      .then(salvaIscrizione)
+      .then(function (r) { if (r && r.error) toast(errore(r.error)); else toast("Notifiche attivate"); pannelloNotifiche(); });
+  }).catch(function () { toast("Non è stato possibile attivare le notifiche. Riprova."); });
+}
+window.addEventListener("hashchange", function () { var v = (location.hash || "").replace("#", ""); if (S.caricato && VISTE.indexOf(v) >= 0) vai(v); });
 
 /* ---------- installazione come app ---------- */
 if ("serviceWorker" in navigator && location.protocol === "https:") {
