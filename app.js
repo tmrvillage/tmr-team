@@ -202,6 +202,7 @@ function preparaApp() {
 
   // turni
   $("t-filtro").onchange = function () { ls("tmr-filtro-turni", this.value); renderTurni(); };
+  $("tu-persona").onchange = repartiTurno;
   $("t-prec").onclick = function () { S.sett--; renderTurni(); };
   $("t-succ").onclick = function () { S.sett++; renderTurni(); };
   $("t-oggi").onclick = function () { S.sett = 0; renderTurni(); };
@@ -213,7 +214,7 @@ function preparaApp() {
     if ($("tu-fine").value <= $("tu-inizio").value) return toast("L'orario di fine deve essere dopo l'inizio.");
     var giorni = [$("tu-giorno").value];
     if ($("tu-ripeti").checked) { var l = lunedi(0, daIso($("tu-giorno").value)); giorni = []; for (var i = 0; i < 6; i++) { var d = new Date(l); d.setDate(l.getDate() + i); giorni.push(iso(d)); } }
-    var righe = giorni.map(function (g) { return { persona: p.id, nome: p.nome, reparto: p.reparto, giorno: g, inizio: $("tu-inizio").value, fine: $("tu-fine").value, autore: S.me.id }; });
+    var righe = giorni.map(function (g) { return { persona: p.id, nome: p.nome, reparto: $("tu-reparto").value || p.reparto, giorno: g, inizio: $("tu-inizio").value, fine: $("tu-fine").value, autore: S.me.id }; });
     occupato(f, true);
     sb.from("turni").insert(righe).then(function (r) { occupato(f, false); if (r.error) return toast(errore(r.error)); toast(righe.length > 1 ? "Turni salvati" : "Turno salvato"); $("tu-ripeti").checked = false; ricarica("turni"); });
   };
@@ -245,7 +246,7 @@ function preparaApp() {
 
 function entraNellApp() {
   $("me-nome").textContent = S.me.nome;
-  $("me-rep").textContent = nomeRep(S.me.reparto) + (S.me.ruolo !== "dipendente" ? " · " + RUOLI[S.me.ruolo] : "");
+  $("me-rep").textContent = mieiReparti().map(nomeRep).join(" + ") + (S.me.ruolo !== "dipendente" ? " · " + RUOLI[S.me.ruolo] : "");
   document.querySelectorAll(".solo-resp").forEach(function (e) { e.hidden = !isResp(); });
   document.querySelectorAll(".solo-admin").forEach(function (e) { e.hidden = !isAdmin(); });
   $("pe-titolo-lista").textContent = isResp() ? "Tutte le richieste" : "Le mie richieste";
@@ -289,7 +290,7 @@ function ricarica(t) {
       if (t === "persone") {
         var io = S.persone.filter(function (p) { return p.id === S.me.id; })[0];
         if (!io) { esci(); return; }
-        var cambiato = io.ruolo !== S.me.ruolo || io.approvato !== S.me.approvato;
+        var cambiato = io.ruolo !== S.me.ruolo || io.approvato !== S.me.approvato || io.reparto !== S.me.reparto || String(io.reparti_extra) !== String(S.me.reparti_extra);
         S.me = io;
         if (!io.approvato) { S.caricato = false; staccaTempoReale(); $("att-nome").textContent = io.nome; mostra("v-attesa"); return; }
         if (cambiato) { entraNellApp(); return; }
@@ -321,7 +322,7 @@ function segnaVisto(k) { ls("tmr-visto-" + k, new Date().toISOString()); }
 function aggiornaPallini() {
   function pall(id, n) { var e = $(id); e.hidden = !n; e.textContent = n > 9 ? "9+" : String(n); }
   var va = visto("avvisi");
-  pall("nd-avvisi", S.vista === "avvisi" ? 0 : S.avvisi.filter(function (a) { return a.creato_il > va && a.autore !== S.me.id && (a.reparto === "tutti" || a.reparto === S.me.reparto); }).length);
+  pall("nd-avvisi", S.vista === "avvisi" ? 0 : S.avvisi.filter(function (a) { return a.creato_il > va && a.autore !== S.me.id && (a.reparto === "tutti" || nelMioReparto(a.reparto)); }).length);
   var nuoviChat = canaliMiei().filter(function (c) { return canaleHaNuovi(c.id) && !(S.vista === "chat" && S.canale === c.id); }).length;
   pall("nd-chat", nuoviChat);
   pall("nd-permessi", isResp() ? S.permessi.filter(function (p) { return p.stato === "attesa"; }).length : 0);
@@ -343,7 +344,7 @@ function bottoneElimina(tabella, id, etichetta) {
 function renderAvvisi() {
   var box = $("l-avvisi"); box.textContent = "";
   var solo = $("av-miei").checked;
-  var l = S.avvisi.filter(function (a) { return !solo || a.reparto === "tutti" || a.reparto === S.me.reparto; });
+  var l = S.avvisi.filter(function (a) { return !solo || a.reparto === "tutti" || nelMioReparto(a.reparto); });
   if (!l.length) { box.appendChild(h("div", { "class": "empty", text: isResp() ? "Nessun avviso. Premi \"+ Nuovo avviso\" per pubblicare il primo." : "Nessun avviso per ora." })); return; }
   l.forEach(function (a) {
     box.appendChild(h("article", { "class": "item" + (a.urgente ? " urgente" : "") }, [
@@ -396,6 +397,15 @@ function renderTurni() {
     sel.appendChild(g);
   });
   if (prima) sel.value = prima;
+  repartiTurno();
+}
+function repartiTurno() {
+  var p = S.persone.filter(function (x) { return x.id === $("tu-persona").value; })[0];
+  var sel = $("tu-reparto"), prima = sel.value; sel.textContent = "";
+  if (!p) return;
+  var rr = [p.reparto].concat(p.reparti_extra || []);
+  rr.forEach(function (r) { sel.appendChild(h("option", { value: r, text: nomeRep(r) })); });
+  if (prima && rr.indexOf(prima) >= 0) sel.value = prima;
 }
 
 /* ---------- permessi ---------- */
@@ -427,12 +437,14 @@ function renderPermessi() {
 }
 
 /* ---------- chat ---------- */
-function canaliMiei() { return [{ id: "tutti", nome: "Tutti" }].concat(REPARTI.filter(function (r) { return isAdmin() || r.id === S.me.reparto; })); }
+function mieiReparti() { return [S.me.reparto].concat(S.me.reparti_extra || []); }
+function nelMioReparto(r) { return mieiReparti().indexOf(r) >= 0; }
+function canaliMiei() { return [{ id: "tutti", nome: "Tutti" }].concat(REPARTI.filter(function (r) { return isAdmin() || nelMioReparto(r.id); })); }
 function renderCanali() {
   var box = $("c-canali"); box.textContent = ""; if (!canaliMiei().some(function (c) { return c.id === S.canale; })) S.canale = "tutti";
   canaliMiei().forEach(function (c) {
     var nuovi = c.id !== S.canale && canaleHaNuovi(c.id);
-    box.appendChild(h("button", { type: "button", "aria-pressed": String(S.canale === c.id), "class": nuovi ? "nuovi" : null, text: c.nome + (c.id === S.me.reparto ? " ★" : (c.id !== "tutti" ? " · in silenzio" : "")), on: { click: function () {
+    box.appendChild(h("button", { type: "button", "aria-pressed": String(S.canale === c.id), "class": nuovi ? "nuovi" : null, text: c.nome + (nelMioReparto(c.id) ? " ★" : (c.id !== "tutti" ? " · in silenzio" : "")), on: { click: function () {
       S.canale = c.id; ls("tmr-canale", c.id); segnaVisto("chat-" + c.id); renderCanali(); renderChat(true); aggiornaPallini();
     } } }));
   });
@@ -441,7 +453,7 @@ function renderChat(inFondo) {
   var box = $("c-msgs"); if (!box) return;
   var giu = inFondo || box.scrollHeight - box.scrollTop - box.clientHeight < 80;
   box.textContent = "";
-  var spett = S.canale !== "tutti" && S.canale !== S.me.reparto;
+  var spett = S.canale !== "tutti" && !nelMioReparto(S.canale);
   $("c-testo").disabled = spett; $("f-msg").querySelector("button").disabled = spett;
   $("c-testo").placeholder = spett ? "Sola lettura: stai guardando in silenzio" : "Scrivi in " + (S.canale === "tutti" ? "Tutti" : nomeRep(S.canale));
   var l = S.msg.filter(function (m) { return m.canale === S.canale; }).slice().reverse();
@@ -468,7 +480,7 @@ function renderPersone() {
   l.forEach(function (p) {
     var io = p.id === S.me.id;
     function salva(campi, msg) { sb.from("persone").update(campi).eq("id", p.id).then(function (r) { if (r.error) return toast(errore(r.error)); toast(msg || "Salvato"); ricarica("persone"); }); }
-    var selRep = h("select", { "aria-label": "Reparto di " + p.nome, on: { change: function () { salva({ reparto: this.value }); } } });
+    var selRep = h("select", { "aria-label": "Reparto di " + p.nome, on: { change: function () { salva({ reparto: this.value, reparti_extra: (p.reparti_extra || []).filter(function (x) { return x !== selRep.value; }) }); } } });
     opzioniReparti(selRep); selRep.value = p.reparto;
     var selRuolo = h("select", { "aria-label": "Ruolo di " + p.nome, disabled: io, on: { change: function () { salva({ ruolo: this.value }); } } });
     Object.keys(RUOLI).forEach(function (k) { selRuolo.appendChild(h("option", { value: k, text: RUOLI[k] })); });
@@ -477,7 +489,15 @@ function renderPersone() {
       h("div", { "class": "meta" }, [!p.approvato ? h("span", { "class": "pill tag-red", text: "Da approvare" }) : h("span", { "class": "pill st-approvato", text: "Attivo" }), io ? h("span", { "class": "pill", text: "Sei tu" }) : null]),
       h("h3", { text: p.nome }),
       h("p", { "class": "small muted", text: (p.email || "") + " · iscritto " + fQuando(p.creato_il) }),
-      h("div", { "class": "row" }, [h("label", null, ["Reparto", selRep]), h("label", null, ["Ruolo", selRuolo])]),
+      h("div", { "class": "row" }, [h("label", null, ["Reparto principale", selRep]), h("label", null, ["Ruolo", selRuolo])]),
+      h("div", { "class": "actions" }, [h("span", { "class": "small muted", text: "Anche in:" })].concat(REPARTI.filter(function (r) { return r.id !== p.reparto; }).map(function (r) {
+        var extra = p.reparti_extra || [];
+        return h("label", { "class": "check" }, [h("input", { type: "checkbox", checked: extra.indexOf(r.id) >= 0, on: { change: function () {
+          var box = this;
+          var nuovi = REPARTI.map(function (x) { return x.id; }).filter(function (id) { return id !== p.reparto && (id === r.id ? box.checked : extra.indexOf(id) >= 0); });
+          salva({ reparti_extra: nuovi }, nuovi.length ? p.nome + ": " + [p.reparto].concat(nuovi).map(nomeRep).join(" + ") : "Salvato");
+        } } }), r.nome]);
+      }))),
       h("div", { "class": "actions" }, [
         !p.approvato ? h("button", { "class": "btn red small", type: "button", text: "Approva", on: { click: function () { salva({ approvato: true }, p.nome + " può entrare"); } } }) : null,
         p.approvato && !io ? h("button", { "class": "btn small", type: "button", text: "Sospendi", on: { click: function () { salva({ approvato: false }, "Accesso sospeso"); } } }) : null,
