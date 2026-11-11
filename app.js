@@ -426,13 +426,13 @@ function renderPermessi() {
 }
 
 /* ---------- chat ---------- */
-function canaliMiei() { return [{ id: "tutti", nome: "Tutti" }].concat(REPARTI); }
+function canaliMiei() { return [{ id: "tutti", nome: "Tutti" }].concat(REPARTI.filter(function (r) { return isAdmin() || r.id === S.me.reparto; })); }
 function renderCanali() {
-  var box = $("c-canali"); box.textContent = "";
+  var box = $("c-canali"); box.textContent = ""; if (!canaliMiei().some(function (c) { return c.id === S.canale; })) S.canale = "tutti";
   canaliMiei().forEach(function (c) {
     var nuovi = c.id !== S.canale && canaleHaNuovi(c.id);
-    box.appendChild(h("button", { type: "button", "aria-pressed": String(S.canale === c.id), "class": nuovi ? "nuovi" : null, text: c.nome + (c.id === S.me.reparto ? " ★" : ""), on: { click: function () {
-      S.canale = c.id; ls("tmr-canale", c.id); segnaVisto("chat-" + c.id); renderCanali(); renderChat(true); aggiornaPallini(); $("c-testo").placeholder = "Scrivi in " + (c.id === "tutti" ? "Tutti" : c.nome);
+    box.appendChild(h("button", { type: "button", "aria-pressed": String(S.canale === c.id), "class": nuovi ? "nuovi" : null, text: c.nome + (c.id === S.me.reparto ? " ★" : (c.id !== "tutti" ? " · in silenzio" : "")), on: { click: function () {
+      S.canale = c.id; ls("tmr-canale", c.id); segnaVisto("chat-" + c.id); renderCanali(); renderChat(true); aggiornaPallini();
     } } }));
   });
 }
@@ -440,6 +440,9 @@ function renderChat(inFondo) {
   var box = $("c-msgs"); if (!box) return;
   var giu = inFondo || box.scrollHeight - box.scrollTop - box.clientHeight < 80;
   box.textContent = "";
+  var spett = S.canale !== "tutti" && S.canale !== S.me.reparto;
+  $("c-testo").disabled = spett; $("f-msg").querySelector("button").disabled = spett;
+  $("c-testo").placeholder = spett ? "Sola lettura: stai guardando in silenzio" : "Scrivi in " + (S.canale === "tutti" ? "Tutti" : nomeRep(S.canale));
   var l = S.msg.filter(function (m) { return m.canale === S.canale; }).slice().reverse();
   if (!l.length) box.appendChild(h("div", { "class": "empty", text: "Ancora nessun messaggio in " + (S.canale === "tutti" ? "Tutti" : nomeRep(S.canale)) + "." }));
   var ultimoGiorno = "";
