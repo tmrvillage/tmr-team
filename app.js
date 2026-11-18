@@ -14,7 +14,7 @@ var STATI = { attesa: "In attesa", approvato: "Approvato", rifiutato: "Rifiutato
 var VISTE = ["avvisi", "turni", "permessi", "chat", "persone"];
 
 var S = {
-  me: null, persone: [], avvisi: [], turni: [], permessi: [], msg: [],
+  me: null, persone: [], avvisi: [], turni: [], permessi: [], msg: [], sondaggi: [], voti: [],
   vista: "avvisi", canale: "tutti", sett: 0, canaleRT: null, caricato: false
 };
 var sb = null;
@@ -200,6 +200,22 @@ function preparaApp() {
       .then(function (r) { occupato(f, false); if (r.error) return toast(errore(r.error)); f.reset(); f.hidden = true; toast("Avviso pubblicato"); ricarica("avvisi"); });
   };
 
+  // sondaggi
+  opzioniReparti($("so-reparto"), [["tutti", "Tutta l'azienda"]]);
+  function rigaOpzione(val) { var i = h("input", { maxlength: "80", placeholder: "Risposta " + (document.querySelectorAll(".so-opz").length + 1), value: val || "" }); i.className = "so-opz"; $("so-opzioni").appendChild(i); }
+  $("b-nuovo-sondaggio").onclick = function () { $("f-sondaggio").reset(); $("so-opzioni").textContent = ""; ["Io ci sono", "Non posso", ""].forEach(rigaOpzione); $("f-sondaggio").hidden = false; $("f-avviso").hidden = true; $("so-domanda").focus(); };
+  $("so-aggiungi").onclick = function () { if (document.querySelectorAll(".so-opz").length < 10) rigaOpzione(""); else toast("Massimo 10 risposte."); };
+  $("f-sondaggio").onsubmit = function (e) {
+    e.preventDefault(); var f = e.target;
+    var opz = [].map.call(document.querySelectorAll(".so-opz"), function (i) { return i.value.trim(); }).filter(Boolean);
+    if (opz.length < 2) return toast("Scrivi almeno due risposte.");
+    var sc = $("so-scadenza").value;
+    if (sc && new Date(sc) <= new Date()) return toast("La scadenza deve essere nel futuro.");
+    occupato(f, true);
+    sb.from("sondaggi").insert({ domanda: $("so-domanda").value.trim(), opzioni: opz, reparto: $("so-reparto").value, scadenza: sc ? new Date(sc).toISOString() : null, autore: S.me.id })
+      .then(function (r) { occupato(f, false); if (r.error) return toast(errore(r.error)); f.reset(); f.hidden = true; toast("Sondaggio pubblicato"); ricarica("sondaggi"); });
+  };
+
   // turni
   $("t-filtro").onchange = function () { ls("tmr-filtro-turni", this.value); renderTurni(); };
   $("tu-persona").onchange = repartiTurno;
@@ -277,9 +293,11 @@ var QUERY = {
   avvisi: function () { return sb.from("avvisi").select("*").order("creato_il", { ascending: false }).limit(200); },
   turni: function () { var d = new Date(); d.setDate(d.getDate() - 120); return sb.from("turni").select("*").gte("giorno", iso(d)).order("giorno").limit(3000); },
   permessi: function () { return sb.from("permessi").select("*").order("creato_il", { ascending: false }).limit(300); },
-  messaggi: function () { return sb.from("messaggi").select("*").order("creato_il", { ascending: false }).limit(600); }
+  messaggi: function () { return sb.from("messaggi").select("*").order("creato_il", { ascending: false }).limit(600); },
+  sondaggi: function () { return sb.from("sondaggi").select("*").order("creato_il", { ascending: false }).limit(100); },
+  voti: function () { return sb.from("voti").select("*").limit(5000); }
 };
-var CHIAVE = { persone: "persone", avvisi: "avvisi", turni: "turni", permessi: "permessi", messaggi: "msg" };
+var CHIAVE = { persone: "persone", avvisi: "avvisi", turni: "turni", permessi: "permessi", messaggi: "msg", sondaggi: "sondaggi", voti: "voti" };
 var attese = {};
 function ricarica(t) {
   clearTimeout(attese[t]);
@@ -322,7 +340,7 @@ function segnaVisto(k) { ls("tmr-visto-" + k, new Date().toISOString()); }
 function aggiornaPallini() {
   function pall(id, n) { var e = $(id); e.hidden = !n; e.textContent = n > 9 ? "9+" : String(n); }
   var va = visto("avvisi");
-  pall("nd-avvisi", S.vista === "avvisi" ? 0 : S.avvisi.filter(function (a) { return a.creato_il > va && a.autore !== S.me.id && (a.reparto === "tutti" || nelMioReparto(a.reparto)); }).length);
+  pall("nd-avvisi", S.vista === "avvisi" ? 0 : S.avvisi.concat(S.sondaggi).filter(function (a) { return a.creato_il > va && a.autore !== S.me.id && (a.reparto === "tutti" || nelMioReparto(a.reparto)); }).length);
   var nuoviChat = canaliMiei().filter(function (c) { return canaleHaNuovi(c.id) && !(S.vista === "chat" && S.canale === c.id); }).length;
   pall("nd-chat", nuoviChat);
   pall("nd-permessi", isResp() ? S.permessi.filter(function (p) { return p.stato === "attesa"; }).length : 0);
@@ -344,16 +362,66 @@ function bottoneElimina(tabella, id, etichetta) {
 function renderAvvisi() {
   var box = $("l-avvisi"); box.textContent = "";
   var solo = $("av-miei").checked;
-  var l = S.avvisi.filter(function (a) { return !solo || a.reparto === "tutti" || nelMioReparto(a.reparto); });
-  if (!l.length) { box.appendChild(h("div", { "class": "empty", text: isResp() ? "Nessun avviso. Premi \"+ Nuovo avviso\" per pubblicare il primo." : "Nessun avviso per ora." })); return; }
-  l.forEach(function (a) {
-    box.appendChild(h("article", { "class": "item" + (a.urgente ? " urgente" : "") }, [
-      h("div", { "class": "meta" }, [pillRep(a.reparto), a.urgente ? h("span", { "class": "pill tag-red", text: "Urgente" }) : null]),
-      h("h3", { text: a.titolo }),
-      h("p", { text: a.testo }),
-      h("div", { "class": "meta" }, [h("span", { text: nomeDi(a.autore) + " · " + fQuando(a.creato_il) }), h("span", { "class": "grow" }), isResp() ? bottoneElimina("avvisi", a.id) : null])
+  var ok = function (r) { return !solo || r === "tutti" || nelMioReparto(r); };
+  var l = S.avvisi.filter(function (a) { return ok(a.reparto); }).map(function (a) { return { s: false, d: a }; })
+    .concat(S.sondaggi.filter(function (s) { return ok(s.reparto); }).map(function (s) { return { s: true, d: s }; }))
+    .sort(function (x, y) { return x.d.creato_il < y.d.creato_il ? 1 : -1; });
+  if (!l.length) { box.appendChild(h("div", { "class": "empty", text: isResp() ? "Nessun avviso. Premi \"+ Nuovo avviso\" o \"+ Sondaggio\" per pubblicare il primo." : "Nessun avviso per ora." })); return; }
+  l.forEach(function (x) { box.appendChild(x.s ? cardSondaggio(x.d) : cardAvviso(x.d)); });
+}
+function cardAvviso(a) {
+  return h("article", { "class": "item" + (a.urgente ? " urgente" : "") }, [
+    h("div", { "class": "meta" }, [pillRep(a.reparto), a.urgente ? h("span", { "class": "pill tag-red", text: "Urgente" }) : null]),
+    h("h3", { text: a.titolo }),
+    h("p", { text: a.testo }),
+    h("div", { "class": "meta" }, [h("span", { text: nomeDi(a.autore) + " · " + fQuando(a.creato_il) }), h("span", { "class": "grow" }), isResp() ? bottoneElimina("avvisi", a.id) : null])
+  ]);
+}
+
+/* ---------- sondaggi ---------- */
+function sondaggioAperto(s) { return !s.chiuso && (!s.scadenza || new Date(s.scadenza) > new Date()); }
+function possoVotare(s) { return sondaggioAperto(s) && (s.reparto === "tutti" || nelMioReparto(s.reparto)); }
+function destinatariSondaggio(s) {
+  return S.persone.filter(function (p) { return p.approvato && (s.reparto === "tutti" || p.reparto === s.reparto || (p.reparti_extra || []).indexOf(s.reparto) >= 0); });
+}
+function votaOpzione(s, i, gia) {
+  var q = gia
+    ? sb.from("voti").delete().eq("sondaggio", s.id).eq("persona", S.me.id).eq("opzione", i)
+    : sb.from("voti").insert({ sondaggio: s.id, persona: S.me.id, opzione: i });
+  if (gia) S.voti = S.voti.filter(function (v) { return !(v.sondaggio === s.id && v.persona === S.me.id && v.opzione === i); });
+  else S.voti = S.voti.concat([{ sondaggio: s.id, persona: S.me.id, opzione: i }]);
+  renderAvvisi();
+  q.then(function (r) { if (r.error) toast(errore(r.error)); ricarica("voti"); });
+}
+function cardSondaggio(s) {
+  var voti = S.voti.filter(function (v) { return v.sondaggio === s.id; });
+  var aperto = sondaggioAperto(s), vota = possoVotare(s);
+  var opz = h("div", { "class": "opz" });
+  (s.opzioni || []).forEach(function (o, i) {
+    var chi = voti.filter(function (v) { return v.opzione === i; });
+    var mio = chi.some(function (v) { return v.persona === S.me.id; });
+    opz.appendChild(h("button", { type: "button", "aria-pressed": String(mio), disabled: !vota, on: { click: function () { votaOpzione(s, i, mio); } } }, [
+      h("span", { "class": "box", text: mio ? "✓" : "" }), h("span", { "class": "lab", text: o }), h("span", { "class": "n", text: String(chi.length) })
     ]));
+    if (chi.length) opz.appendChild(h("div", { "class": "chi", text: chi.map(function (v) { return nomeDi(v.persona); }).join(", ") }));
   });
+  var hanno = {}; voti.forEach(function (v) { hanno[v.persona] = 1; });
+  var mancano = destinatariSondaggio(s).filter(function (p) { return !hanno[p.id]; });
+  var stato = !aperto ? h("span", { "class": "pill", text: "Chiuso" }) : (s.scadenza ? h("span", { "class": "pill st-attesa", text: "Scade " + fQuando(s.scadenza) }) : null);
+  return h("article", { "class": "item sondaggio" }, [
+    h("div", { "class": "meta" }, [h("span", { "class": "pill tag-red", text: "Sondaggio" }), pillRep(s.reparto), stato]),
+    h("h3", { text: s.domanda }),
+    vota ? h("p", { "class": "small muted", text: "Tocca una o più risposte. Puoi cambiarle quando vuoi." }) : (aperto ? h("p", { "class": "small muted", text: "Stai guardando: questo sondaggio non è per il tuo reparto." }) : null),
+    opz,
+    h("p", { "class": "small muted", text: mancano.length ? "Non hanno ancora risposto (" + mancano.length + "): " + mancano.map(function (p) { return p.id === S.me.id ? "Tu" : p.nome; }).join(", ") : "Hanno risposto tutti." }),
+    h("div", { "class": "meta" }, [
+      h("span", { text: nomeDi(s.autore) + " · " + fQuando(s.creato_il) }), h("span", { "class": "grow" }),
+      isResp() ? h("button", { "class": "btn ghost", type: "button", text: s.chiuso ? "Riapri" : "Chiudi sondaggio", on: { click: function () {
+        sb.from("sondaggi").update({ chiuso: !s.chiuso }).eq("id", s.id).then(function (r) { if (r.error) return toast(errore(r.error)); toast(s.chiuso ? "Sondaggio riaperto" : "Sondaggio chiuso"); ricarica("sondaggi"); });
+      } } }) : null,
+      isResp() ? bottoneElimina("sondaggi", s.id) : null
+    ])
+  ]);
 }
 
 /* ---------- turni ---------- */
