@@ -117,6 +117,16 @@ textarea{resize:vertical;min-height:70px}
 .shift time{color:var(--muted);font-variant-numeric:tabular-nums}
 .shift button{border:0;background:none;color:var(--muted);font-size:17px;line-height:1;padding:0 4px;cursor:pointer}
 
+/* sondaggi */
+.opz{display:flex;flex-direction:column;gap:6px}
+.opz button{display:flex;align-items:center;gap:10px;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:11px 12px;cursor:pointer;width:100%;font-size:15px}
+.opz button[aria-pressed="true"]{border-color:var(--red);background:var(--red-soft)}
+.opz button:disabled{cursor:default;opacity:.85}
+.opz .box{width:22px;height:22px;border-radius:6px;border:2px solid var(--muted);flex:none;display:grid;place-items:center;font-size:14px;font-weight:700;color:#fff}
+.opz button[aria-pressed="true"] .box{background:var(--red);border-color:var(--red)}
+.opz .lab{flex:1;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.opz .n{font-variant-numeric:tabular-nums;font-weight:700;min-width:22px;text-align:right}
+.opz .chi{font-size:13px;color:var(--muted);padding:0 4px 4px 44px}
 /* chat */
 .channels{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
 .channels button{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 13px;font-weight:600;font-size:14px;cursor:pointer;position:relative}
@@ -221,6 +231,7 @@ textarea{resize:vertical;min-height:70px}
     <section id="s-avvisi" class="list">
       <div class="head"><h2>Avvisi</h2>
         <div class="actions"><label class="check"><input type="checkbox" id="av-miei"> Solo il mio reparto</label>
+        <button class="btn small solo-resp" type="button" id="b-nuovo-sondaggio">+ Sondaggio</button>
         <button class="btn red small solo-resp" type="button" id="b-nuovo-avviso">+ Nuovo avviso</button></div></div>
       <form class="panel" id="f-avviso" hidden>
         <div class="row">
@@ -229,6 +240,19 @@ textarea{resize:vertical;min-height:70px}
         </div>
         <label>Testo<textarea id="av-testo" required maxlength="2000"></textarea></label>
         <div class="actions"><button class="btn red" type="submit">Pubblica</button><label class="check"><input type="checkbox" id="av-urgente"> Urgente</label><button class="btn ghost" type="button" data-chiudi="f-avviso">Annulla</button></div>
+      </form>
+      <form class="panel" id="f-sondaggio" hidden>
+        <strong>Nuovo sondaggio</strong>
+        <label>Domanda<input id="so-domanda" required maxlength="200" placeholder="Es. Chi è disponibile domenica 29 in negozio?"></label>
+        <label>Risposte possibili</label>
+        <div class="list" id="so-opzioni" style="gap:8px"></div>
+        <button class="btn ghost" type="button" id="so-aggiungi" style="align-self:flex-start">+ Aggiungi risposta</button>
+        <div class="row">
+          <label>Per chi<select id="so-reparto"></select></label>
+          <label>Scadenza (facoltativa)<input id="so-scadenza" type="datetime-local"></label>
+        </div>
+        <p class="small muted">Ognuno può scegliere più di una risposta.</p>
+        <div class="actions"><button class="btn red" type="submit">Pubblica sondaggio</button><button class="btn ghost" type="button" data-chiudi="f-sondaggio">Annulla</button></div>
       </form>
       <div class="list" id="l-avvisi"></div>
     </section>
@@ -306,6 +330,6 @@ textarea{resize:vertical;min-height:70px}
 
 <script src="config.js?v=4"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.87.2/dist/umd/supabase.js"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
